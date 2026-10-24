@@ -1,0 +1,69 @@
+const art=document.createElement('div');art.className='pet-art'+(p.owned?(p.ride?' owned-yellow':' owned-green'):'');
+  if(p.image){const img=document.createElement('img');img.src=p.image;img.alt=p.name;img.onerror=()=>{img.remove();art.textContent=p.emoji||'🐾'};art.appendChild(img)}else art.textContent=p.emoji||'🐾';
+  const checks=document.createElement('div');checks.className='pet-checks';
+  const own=document.createElement('button');own.className='owned'+(p.owned?' active':'');own.title=p.owned?'Segna come non posseduto':'Segna come posseduto';own.textContent=p.owned?'✓':'';own.onclick=()=>{p.owned=!p.owned;if(!p.owned)p.ride=false;save()};
+  const ride=document.createElement('button');ride.className='owned ride'+(p.ride?' active':'');ride.title=p.ride?'Togli cavalcabile':'Segna come cavalcabile';ride.textContent=p.ride?'★':'';ride.onclick=()=>{p.ride=!p.ride;if(p.ride)p.owned=true;save()};checks.append(own,ride);art.append(checks);
+  const info=document.createElement('div');info.className='pet-info';
+  const name=document.createElement('div');name.className='pet-name';name.textContent=p.name;name.title=p.name;
+  const meta=document.createElement('div');meta.className='pet-meta';
+  const rarity=document.createElement('span');rarity.className='rarity '+slug(p.rarity);rarity.textContent=p.rarity;
+  const qty=document.createElement('span');qty.className='level';qty.textContent='x'+(p.quantity||1);
+  meta.append(rarity,qty);info.append(name,meta);
+  const edit=document.createElement('button');edit.textContent='Modifica';edit.style.cssText='margin:0 10px 10px;padding:5px 8px;font-size:11px';edit.onclick=()=>openModal(p.id);
+  const variantsBtn=document.createElement('button');variantsBtn.textContent=`Varianti (${p.variants.length})`;variantsBtn.style.cssText='margin:0 0 10px 0;padding:5px 8px;font-size:11px';
+  const variants=document.createElement('div');variants.className='variant-list';variants.hidden=true;
+  function drawVariants(){variants.innerHTML='';p.variants.sort((a,b)=>rarityRank(a.rarity)-rarityRank(b.rarity)||a.name.localeCompare(b.name,'it')).forEach((v,i)=>{const row=document.createElement('div');row.className='variant-row';const label=document.createElement('span');label.textContent=v.name+' · '+v.rarity+(v.owned?' ✓':'')+(v.ride?' ★':'');const qin=document.createElement('input');qin.type='number';qin.min='1';qin.max='999';qin.value=v.quantity||1;qin.title='Quantità';qin.onchange=()=>{v.quantity=Math.max(1,Number(qin.value)||1);save()};const ownv=document.createElement('button');ownv.textContent=v.owned?'✓':'□';ownv.title='Posseduto';ownv.onclick=()=>{v.owned=!v.owned;if(!v.owned)v.ride=false;save()};const ridev=document.createElement('button');ridev.textContent=v.ride?'★':'☆';ridev.title='Cavalcabile';ridev.onclick=()=>{v.ride=!v.ride;if(v.ride)v.owned=true;save()};const del=document.createElement('button');del.textContent='×';del.title='Elimina variante';del.onclick=()=>{if(confirm('Eliminare questa variante?')){p.variants.splice(i,1);save()}};row.append(label,qin,ownv,ridev,del);variants.append(row)})}
+  const addVariant=document.createElement('button');addVariant.className='variant-add';addVariant.textContent='+ Aggiungi variante';addVariant.onclick=()=>{const name=prompt('Nome della variante:');if(!name||!name.trim())return;let rarity=prompt('Rarità (Comune, Non comune, Raro, Epico, Leggendario, Limitato, Brotchy):','Comune')||'Comune';if(!rarities.includes(rarity))rarity='Comune';p.variants.push({id:Date.now()+'',name:name.trim(),rarity,owned:false,ride:false,quantity:1});save();variants.hidden=false};
+  variantsBtn.onclick=()=>{variants.hidden=!variants.hidden;if(!variants.hidden)drawVariants()};
+  card.append(art,info,edit,variantsBtn,variants,addVariant);grid.append(card);
+ })
+}
+function openModal(id=null){
+ editingId=id;const p=pets.find(x=>x.id===id);
+ $('modalTitle').textContent=p?'Modifica pet':'Aggiungi un pet';
+ $('petName').value=p?.name||'';$('petRarity').value=p?.rarity||'Comune';$('petEmoji').value=p?.emoji||'🐾';$('petImage').value=p?.image?.startsWith('data:')?'':(p?.image||'');$('petImageFile').value='';$('petOwned').checked=!!p?.owned;$('petRide').checked=!!p?.ride;$('petQuantity').value=p?.quantity||1;
+ $('modalBack').classList.add('open');$('petName').focus()
+}
+function closeModal(){$('modalBack').classList.remove('open')}
+$('addTop').onclick=()=>openModal();$('cancel').onclick=closeModal;
+$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});
+$('petForm').onsubmit=async e=>{e.preventDefault();const old=pets.find(p=>p.id===editingId);let image=$('petImage').value.trim()||(old?.image||'');const file=$('petImageFile').files[0];if(file){if(file.size>3*1024*1024){alert('Questa immagine supera 3 MB. Scegli un’immagine più piccola.');return}try{image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}catch(err){alert('Non riesco a leggere questa immagine.');return}}const owned=$('petOwned').checked;const data={...(old||{}),id:editingId||String(Date.now())+'-'+Math.random().toString(36).slice(2,7),name:$('petName').value.trim(),rarity:$('petRarity').value,emoji:$('petEmoji').value.trim()||'🐾',image,owned,ride:owned&&$('petRide').checked,quantity:Math.max(1,Math.min(999,Number($('petQuantity').value)||1)),variants:old?.variants||[],createdAt:old?.createdAt||Date.now()};if(editingId){pets=pets.map(p=>p.id===editingId?data:p)}else pets.push(data);try{save();closeModal()}catch(err){alert('Lo spazio di salvataggio del browser potrebbe essere pieno. Prova un’immagine più piccola.')}};
+['search','rarity','collection'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
+$('reset').onclick=()=>{['search','rarity','collection'].forEach(id=>$(id).value='');render()};
+$('downloadCollection').onclick=async()=>{
+ const owned=pets.filter(p=>p.owned).sort((a,b)=>rarityRank(a.rarity)-rarityRank(b.rarity)||a.name.localeCompare(b.name,'it'));
+ if(!owned.length){alert('Segna almeno un pet come posseduto prima di scaricare la collezione.');return}
+ // Griglia compatta ispirata alla schermata di riferimento: pet senza schede grandi,
+ // con il quadratino colorato direttamente sotto ogni immagine.
+ const cols=7,cellW=150,cellH=142,topH=100,side=24,gap=4;
+ const rows=Math.ceil(owned.length/cols),canvas=document.createElement('canvas');
+ canvas.width=side*2+cols*cellW;canvas.height=topH+rows*cellH+24;
+ const ctx=canvas.getContext('2d');
+ const bg=ctx.createLinearGradient(0,0,canvas.width,canvas.height);bg.addColorStop(0,'#211d35');bg.addColorStop(1,'#101725');ctx.fillStyle=bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+ // sfondo leggermente sfumato, come l'esempio
+ ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.font='800 27px system-ui, sans-serif';ctx.fillText('LA MIA COLLEZIONE PK XD',canvas.width/2,36);
+ ctx.fillStyle='#d5d8e4';ctx.font='bold 15px system-ui, sans-serif';ctx.fillText(`${owned.length} PET POSSEDUTI`,canvas.width/2,62);
+ for(let i=0;i<owned.length;i++){
+  const pet=owned[i],col=i%cols,row=Math.floor(i/cols),cx=side+col*cellW+cellW/2,cy=topH+row*cellH;
+  // alone discreto dietro il pet
+  const glow=ctx.createRadialGradient(cx,cy+43,4,cx,cy+43,52);glow.addColorStop(0,pet.ride?'#8a711d66':'#237d5b55');glow.addColorStop(1,'#10172500');ctx.fillStyle=glow;ctx.fillRect(cx-60,cy-5,120,100);
+  let drew=false;
+  if(pet.image){try{const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=pet.image});const maxW=90,maxH=88,scale=Math.min(maxW/img.width,maxH/img.height);ctx.drawImage(img,cx-img.width*scale/2,cy+2+(maxH-img.height*scale)/2,img.width*scale,img.height*scale);drew=true}catch(e){}}
+  if(!drew){ctx.fillStyle='#f4f6fb';ctx.font='54px sans-serif';ctx.textAlign='center';ctx.fillText(pet.emoji||'🐾',cx,cy+62)}
+  // nome e rarità, centrati sotto l'immagine
+  ctx.textAlign='center';ctx.fillStyle='#f4f6fb';ctx.font='700 13px system-ui, sans-serif';ctx.fillText(pet.name,cx,cy+105,cellW-12);
+  ctx.fillStyle='#c3cada';ctx.font='10px system-ui, sans-serif';ctx.fillText(pet.rarity||'',cx,cy+119,cellW-12);
+  // quadratino colorato sotto ogni pet: giallo cavalcabile, verde normale
+  const color=pet.ride?'#ffdc45':'#42df79',bx=cx-9,by=cy+124;
+  ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(bx,by,18,15,3);ctx.fill();
+  ctx.strokeStyle=pet.ride?'#fff0a3':'#b9ffd0';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(bx+4,by+7);ctx.lineTo(bx+7,by+10);ctx.lineTo(bx+14,by+4);ctx.stroke();
+ }
+ ctx.textAlign='start';
+ canvas.toBlob(blob=>{if(!blob){alert('Non riesco a creare l’immagine.');return}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='la-mia-collezione-pkxd.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)},'image/png');
+};
+$('export').onclick=()=>{const blob=new Blob([JSON.stringify(pets,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pkxd-pets-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!Array.isArray(data))throw new Error();if(confirm('Importare questo backup? Sostituirà il catalogo attuale.')){pets=data;save()}}catch(err){alert('File non valido. Scegli un backup JSON esportato da questo sito.')}e.target.value=''};
+render();
+</script>
+</body></html>
